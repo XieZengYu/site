@@ -52,3 +52,53 @@ class Login(View):
                 return JsonResponse({'error': str(e)})
 
         return JsonResponse({'token': token})
+
+
+class UserInfo(View):
+    def post(self, req):
+        """
+        获取用户信息
+        成功返回 json
+        失败返会空 json
+        错误返回错误信息
+
+        post 数据为 ::
+            {
+                'token': token
+            }
+        """
+        INFO_URL = 'http://210.38.64.5:81/user/userinfo.aspx'
+        token=req.POST.get('token')
+
+        info = {}
+
+        if token:
+            try:
+                session = requests.Session()
+                session.cookies.set('sulcmiswebpac',
+                    token, domain='210.38.64.5')
+                ret = session.get(INFO_URL)
+            except Exception as e:
+                return JsonResponse({'error': str(e)})
+
+            # 没有被重定向, 就是正确的 cookie
+            if ret.url == INFO_URL:
+                q = PyQuery(ret.text)
+                data = [span.text.strip() for span in q('.inforight')]
+                data[-1] = ''.join(data[-1].split())  # 余额中空格需要特殊处理
+                keys = [
+                    'id',       # 学号
+                    'name',     # 姓名
+                    'type',     # 类型
+                    'unit',     # 单位
+                    'state',    # 当前状态
+                    'phone',    # 电话
+                    'mobile',   # 手机
+                    'remarks',  # 备注
+                    'email',    # 邮件
+                    'address',  # 住址
+                    'balance',  # 余额
+                ]
+                info = {k: v for k, v in zip(keys, data)}
+
+        return JsonResponse(info)
